@@ -55,6 +55,23 @@ jobs:
           curl -fsS http://127.0.0.1:23988/healthz | grep -q '"version":"${{ steps.ver.outputs.version }}"'
           curl -fsS -o /dev/null -w "login %{http_code}\n" http://127.0.0.1:23988/login
           docker logs smoke | tail -20
+          docker logs smoke 2>&1 | grep -q "Xvfb 已启动"
+
+      - name: 容器内启动有界面浏览器（登录依赖）
+        run: |
+          docker exec smoke python -c "
+          import asyncio
+          from patchright.async_api import async_playwright
+          from app.config import settings
+          async def main():
+              async with async_playwright() as pw:
+                  b = await pw.chromium.launch(headless=False, channel=settings.browser_channel or None, args=['--no-sandbox', '--disable-dev-shm-usage'])
+                  p = await b.new_page()
+                  await p.goto('data:text/html,<title>ok</title>')
+                  print('browser ok:', b.version, await p.title())
+                  await b.close()
+          asyncio.run(main())
+          "
 
       - name: 冒烟失败时输出容器状态与日志
         if: failure()

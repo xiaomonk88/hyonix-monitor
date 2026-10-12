@@ -38,8 +38,10 @@ class Settings:
     hyonix_base: str = _get("HYONIX_BASE", "https://my.hyonix.com").rstrip("/")
     hyonix_email: str = _get("HYONIX_EMAIL", "")
     hyonix_password: str = _get("HYONIX_PASSWORD", "")
-    # 登录用浏览器：空 = patchright 自带 Chromium（Docker）；本机调试可设为 chrome / msedge
-    browser_channel: str = _get("BROWSER_CHANNEL", "")
+    # 登录用浏览器：空 = 自动（装了 Google Chrome 用 chrome，否则 patchright 自带 Chromium）；
+    # 本机调试可设为 chrome / msedge
+    browser_channel: str = _get("BROWSER_CHANNEL", "") or (
+        "chrome" if Path("/opt/google/chrome/chrome").exists() else "")
 
     @property
     def db_path(self) -> Path:
