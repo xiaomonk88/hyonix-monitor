@@ -87,8 +87,10 @@ PORT="$(grep -E '^HYONIX_PORT=' .env | tail -1 | cut -d= -f2)"; PORT="${PORT:-23
 
 # ---- 3. 拉取镜像（失败则从源码构建）----
 c_info "拉取镜像 ghcr.io/${REPO}..."
+# 先移除上次源码构建留下的覆盖配置，否则 pull 会去拉不存在的本地镜像名（hyonix-monitor:local）
+rm -f docker-compose.override.yml
 if $COMPOSE pull; then
-  rm -f docker-compose.override.yml
+  rm -rf src
 else
   c_warn "镜像拉取失败，改为从 GitHub 源码本地构建（约 1~2 分钟）"
   rm -rf src && mkdir -p src
