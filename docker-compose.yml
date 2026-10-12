@@ -1,0 +1,24 @@
+# Hyonix 监控 · Docker Compose
+# 一键安装脚本会自动下载本文件；也可以手动：cp .env.example .env && docker compose up -d
+services:
+  hyonix-monitor:
+    # 镜像由 GitHub Actions 构建；HYONIX_VERSION 可在 .env 中锁定版本（如 1.0.0），默认 latest
+    image: ghcr.io/xiaomonk88/hyonix-monitor:${HYONIX_VERSION:-latest}
+    container_name: hyonix-monitor
+    restart: unless-stopped
+    # 登录时会短暂启动 Chrome，给足共享内存避免崩溃
+    shm_size: "512m"
+    ports:
+      - "${HYONIX_PORT:-23988}:23988"
+    env_file:
+      - .env
+    environment:
+      # 容器内固定值，覆盖 .env 中的本地开发值
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

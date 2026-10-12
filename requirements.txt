@@ -1,0 +1,12 @@
+# Hyonix 补货监控 —— 依赖（Python 3.12）
+fastapi==0.138.2
+uvicorn[standard]==0.49.0
+sqlmodel==0.0.39
+httpx==0.28.1
+apscheduler==3.11.3
+jinja2==3.1.6
+python-multipart==0.0.32
+itsdangerous==2.2.0
+python-dotenv==1.2.2
+# 登录用：去除自动化特征的 Playwright（通过 Cloudflare Turnstile）
+patchright==1.63.0
