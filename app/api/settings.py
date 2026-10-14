@@ -1,16 +1,18 @@
-"""设置：常规参数、日志分项开关、修改密码。"""
+"""设置：Hyonix 账号、常规参数、修改后台密码。"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlmodel import Session, select
 
+from ..config import settings as app_settings
 from ..db import engine, get_bool_setting, get_setting, set_setting
 from ..deps import require_user
 from ..models import MonitorTask, User
 from ..security import hash_password, verify_password
 from ..templating import flash, render
 from ..services import scheduler as sched
+from ..services.hyonix_session import LoginError, credentials, session as hyonix_session
 
 router = APIRouter()
 
@@ -23,8 +25,45 @@ def settings_page(request: Request, user=Depends(require_user)):
         "catalog_sync_hours": get_setting("catalog_sync_hours") or "24",
         "min_interval_seconds": get_setting("min_interval_seconds") or "15",
     }
-    return render(request, "settings.html", user=user, general=general,
+    email, password = credentials()
+    fail_png = app_settings.data_dir / "login_fail.png"
+    hyonix = {
+        "email": email, "password": password,
+        "logged_in": hyonix_session.has_session,
+        "error": hyonix_session.last_error,
+        # 有登录错误且有现场截图时展示（时间戳用于避免浏览器缓存旧图）
+        "fail_shot": int(fail_png.stat().st_mtime) if hyonix_session.last_error and fail_png.exists() else 0,
+    }
+    return render(request, "settings.html", user=user, general=general, hyonix=hyonix,
                   notify_invalid=get_bool_setting("notify_target_invalid", True))
+
+
+@router.post("/settings/hyonix")
+async def hyonix_account_save(request: Request, user=Depends(require_user),
+                              email: str = Form(""), password: str = Form("")):
+    """保存 Hyonix 账号并立即测试登录：清除旧会话，绕过失败冷却，成功后下一轮轮询即用新账号。"""
+    email = email.strip()
+    if not email or not password:
+        flash(request, "邮箱和密码都不能为空", "error")
+        return RedirectResponse("/settings#hyonix", status_code=303)
+    set_setting("hyonix_email", email)
+    set_setting("hyonix_password", password)
+    hyonix_session.clear()
+    try:
+        await hyonix_session.login(force=True)
+    except LoginError as e:
+        flash(request, f"账号已保存，但登录失败：{e}", "error")
+    else:
+        flash(request, "账号已保存，登录成功，监控将使用新账号继续运行", "success")
+    return RedirectResponse("/settings#hyonix", status_code=303)
+
+
+@router.get("/settings/hyonix/login-fail.png")
+def hyonix_login_fail_shot(user=Depends(require_user)):
+    path = app_settings.data_dir / "login_fail.png"
+    if not path.exists():
+        return Response(status_code=404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @router.post("/settings")

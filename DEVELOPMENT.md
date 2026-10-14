@@ -281,7 +281,7 @@ POST https://api.telegram.org/bot{TOKEN}/sendMessage
 | `DATA_DIR` | 项目根目录下 `data` | 数据库和日志目录 | 重启后生效 |
 | `CATALOG_SYNC_HOURS` | `24` | 首次写入全量同步周期 | 仅对应设置不存在时 |
 | `MIN_INTERVAL_SECONDS` | `15` | 首次写入任务轮询下限 | 仅对应设置不存在时 |
-| `HYONIX_EMAIL` / `HYONIX_PASSWORD` | 空 | Hyonix 客户中心账号（必填） | 重启后生效 |
+| `HYONIX_EMAIL` / `HYONIX_PASSWORD` | 空 | Hyonix 账号初始值；后台「设置 → Hyonix 账号」（设置表 `hyonix_email` / `hyonix_password`）优先 | 后台修改立即生效 |
 | `BROWSER_CHANNEL` | 空 | 登录浏览器（空 = 自动；本机可设 chrome / msedge） | 重启后生效 |
 | `HYONIX_BASE` | `https://my.hyonix.com` | 客户中心地址 | 重启后生效 |
 

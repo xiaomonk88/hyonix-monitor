@@ -6,9 +6,45 @@
 <div class="page-head">
   <div>
     <h1>设置</h1>
-    <p class="sub">调度参数、通知提醒与账号安全</p>
+    <p class="sub">Hyonix 账号、调度参数、通知提醒与后台账号安全</p>
   </div>
 </div>
+
+<form method="post" action="/settings/hyonix" id="hyonix-form">
+  <div class="card" id="hyonix">
+    <div class="card-head">
+      <div>
+        <h2>Hyonix 账号</h2>
+        <div class="sub">用于自动登录 my.hyonix.com 读取库存。保存后立即测试登录，无需重启</div>
+      </div>
+      {% if hyonix.error %}<span class="badge no">登录失败</span>
+      {% elif hyonix.logged_in %}<span class="badge ok">已登录</span>
+      {% else %}<span class="badge warn">未登录</span>{% endif %}
+    </div>
+    <div class="setting-row">
+      <div><div class="label">登录邮箱<span class="req">*</span></div><div class="desc">Hyonix 客户中心账号</div></div>
+      <div><input type="email" name="email" value="{{ hyonix.email }}" autocomplete="off" required></div>
+    </div>
+    <div class="setting-row">
+      <div><div class="label">登录密码<span class="req">*</span></div><div class="desc">明文显示，便于核对；修改密码后在这里同步更新</div></div>
+      <div><input type="text" name="password" value="{{ hyonix.password }}" autocomplete="off" spellcheck="false" required></div>
+    </div>
+    {% if hyonix.error %}
+    <div class="setting-row">
+      <div><div class="label">最近一次登录错误</div><div class="desc">登录失败后 5 分钟内不会自动重试；保存本表单会立即重试</div></div>
+      <div>
+        <div class="mono" style="font-size:.82rem; word-break:break-all">{{ hyonix.error }}</div>
+        {% if hyonix.fail_shot %}
+        <a href="/settings/hyonix/login-fail.png?t={{ hyonix.fail_shot }}" target="_blank" class="btn btn-ghost btn-sm" style="margin-top:.5rem">{{ icon('info', 14) }}<span>查看失败截图</span></a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    <div class="card-foot">
+      <button type="submit" class="btn btn-primary" id="hyonix-submit">{{ icon('check', 15) }}<span>保存并测试登录</span></button>
+    </div>
+  </div>
+</form>
 
 <form method="post" action="/settings">
   <div class="card">
@@ -76,6 +112,11 @@
 {% block scripts %}
 <script>
 (function () {
+  // 登录约需 10~30 秒（浏览器通过 Cloudflare 验证），提交后禁用按钮并提示
+  document.getElementById('hyonix-form').addEventListener('submit', function () {
+    var b = document.getElementById('hyonix-submit');
+    b.disabled = true; b.querySelector('span').textContent = '正在登录，约需 10~30 秒…';
+  });
 
   // 两次新密码不一致时阻止提交，避免往返服务器
   var np = document.getElementById('new_pwd'), cp = document.getElementById('confirm_pwd');

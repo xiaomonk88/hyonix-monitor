@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/xiaomonk88/hyonix-monitor/main/inst
 2. **产品目录**：启动后会自动登录并同步一次（首次登录约 20 秒）；也可点「同步目录」手动刷新
 3. 在目录中勾选想要的套餐（可跨机房多选）→ 创建监控任务，补货时立即推送到 Telegram
 
-仪表盘的「Hyonix 账号」卡片显示登录状态与最近一次抓取错误。
+仪表盘的「Hyonix 账号」卡片显示登录状态与最近一次抓取错误；账号可在「设置 → Hyonix 账号」随时修改并测试登录。
 
 ## 工作原理
 
@@ -71,7 +71,7 @@ docker compose down                                            # 停止（数据
 docker compose exec hyonix-monitor python -m app.reset_admin   # 忘记后台密码：重置为 admin / admin
 ```
 
-修改 Hyonix 密码后：编辑 `.env` 中的 `HYONIX_PASSWORD`，删除 `data/hyonix_cookies.json`，再 `docker compose up -d`。
+修改 Hyonix 账号或密码后：在后台「设置 → Hyonix 账号」更新并点「保存并测试登录」，立即生效，无需重启（`.env` 中的账号只作为首次安装的初始值）。
 
 ## 数据与备份
 

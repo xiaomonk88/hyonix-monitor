@@ -22,6 +22,7 @@ from typing import Optional
 import httpx
 
 from ..config import settings
+from ..db import get_setting
 
 log = logging.getLogger("hyonix.session")
 
@@ -48,6 +49,13 @@ def _is_login_page(html: str, url: str) -> bool:
 def _is_cf_challenge(status: int, html: str) -> bool:
     return status in (403, 503) and ("cf-chl" in html or "challenge-platform" in html
                                       or "Just a moment" in html)
+
+
+def credentials() -> tuple[str, str]:
+    """Hyonix 账号：后台设置优先，未设置时用 .env 的 HYONIX_EMAIL / HYONIX_PASSWORD。每次登录时现读。"""
+    email = (get_setting("hyonix_email") or "").strip() or settings.hyonix_email
+    password = get_setting("hyonix_password") or settings.hyonix_password
+    return email, password
 
 
 def _site_cookies(cookies: list[dict]) -> dict[str, str]:
@@ -93,14 +101,15 @@ class HyonixSession:
 
     # ---- 浏览器登录 -------------------------------------------------------
     async def login(self, force: bool = False) -> None:
-        if not settings.hyonix_email or not settings.hyonix_password:
-            raise LoginError("未配置 HYONIX_EMAIL / HYONIX_PASSWORD")
+        email, password = credentials()
+        if not email or not password:
+            raise LoginError("未配置 Hyonix 账号（在「设置」页填写）")
         async with self._login_lock:
             remain = _LOGIN_COOLDOWN - (time.monotonic() - self._last_login_fail)
             if not force and self._last_login_fail and remain > 0:
                 raise LoginError(f"登录冷却中（{int(remain)} 秒后重试）：{self.last_error}")
             try:
-                await self._browser_login()
+                await self._browser_login(email, password)
             except Exception as e:  # noqa: BLE001
                 self._last_login_fail = time.monotonic()
                 self.last_error = (str(e) or e.__class__.__name__).splitlines()[0]
@@ -112,7 +121,7 @@ class HyonixSession:
             self._save_cookies()
             log.info("Hyonix 登录成功")
 
-    async def _browser_login(self) -> None:
+    async def _browser_login(self, email: str, password: str) -> None:
         from patchright.async_api import async_playwright
 
         async with async_playwright() as pw:
@@ -125,7 +134,7 @@ class HyonixSession:
                 ctx = await browser.new_context()
                 page = await ctx.new_page()
                 try:
-                    await self._submit_login(page)
+                    await self._submit_login(page, email, password)
                 except Exception:
                     await self._dump_failure(page)
                     raise
@@ -153,20 +162,23 @@ class HyonixSession:
             await asyncio.sleep(1.5)
         raise LoginError("Cloudflare 质询未通过（超时）")
 
-    async def _submit_login(self, page) -> None:
+    async def _submit_login(self, page, email: str, password: str) -> None:
         await page.goto(self.url("clientarea.php"), wait_until="domcontentloaded", timeout=60000)
         await self._wait_login_form(page)
-        await page.fill('input[name="username"]', settings.hyonix_email)
-        await page.fill('input[name="password"]', settings.hyonix_password)
+        await page.fill('input[name="username"]', email)
+        await page.fill('input[name="password"]', password)
         # Remember Me 是自定义样式复选框（原生 input 隐藏），直接置位
         await page.evaluate("""() => { const r = document.querySelector('input[name="rememberme"]');
                                        if (r) r.checked = true; }""")
         async with page.expect_navigation(wait_until="domcontentloaded", timeout=60000):
             await page.click('#login, button[type="submit"], input[type="submit"]')
         if _is_login_page(await page.content(), page.url):
-            alert = page.locator(".alert-danger")
-            msg = (await alert.first.inner_text()).strip() if await alert.count() else ""
-            raise LoginError(msg or "提交后仍停留在登录页（账号密码错误？）")
+            # Hyonix 模板的登录错误是 .alert-toast-danger；只取可见元素（页面里隐藏的「生成密码」弹窗也带 .alert-danger）
+            alert = page.locator(".alert-toast-danger:visible, .alert-danger:visible")
+            msg = " ".join((await alert.first.inner_text()).split()) if await alert.count() else ""
+            if "incorrect" in msg.lower():
+                msg = f"账号或密码错误（{msg}）"
+            raise LoginError(msg or "提交后仍停留在登录页（账号或密码错误？）")
 
     async def _dump_failure(self, page) -> None:
         try:

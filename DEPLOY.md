@@ -84,5 +84,5 @@ docker compose up -d
 
 - 仪表盘「Hyonix 账号」卡片显示登录状态与最近一次抓取错误；连续 3 次失败会推送 Telegram 告警
 - 登录失败时现场截图与页面保存在 `data/login_fail.png` / `data/login_fail.html`
-- 账号密码错误：修改 `.env` 后 `docker compose up -d`；登录失败后有 5 分钟冷却，避免频繁提交
+- 账号密码错误：在后台「设置 → Hyonix 账号」更新后点「保存并测试登录」，会立即重试并显示结果与失败截图；自动重试有 5 分钟冷却，避免频繁提交
 - 卡在 Cloudflare 验证：确认使用 amd64 服务器（arm64 只能用 Chromium，通过率较低），并查看截图；服务器 IP 信誉过低时 Cloudflare 可能始终要求人工验证
